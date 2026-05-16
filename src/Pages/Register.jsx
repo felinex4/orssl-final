@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient.js';
 import { User, Mail, Lock, GraduationCap, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function Register() {
