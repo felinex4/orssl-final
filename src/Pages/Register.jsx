@@ -1,41 +1,180 @@
 import React, { useState } from 'react';
-import { GraduationCap, Briefcase } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+import { User, Mail, Lock, GraduationCap, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function Register() {
-  const [registerType, setRegisterType] = useState('professional');
-  const skillFilters = ["Linear Programming", "Integer Programming", "Queuing Theory", "Machine Learning", "Simulation", "Supply Chain Optimization", "Stochastic Modeling", "Financial Analytics"];
+  // Form input track states
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    memberType: 'Student'
+  });
+
+  // Operational system process states
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    setSuccess(false);
+
+    try {
+      // Direct sign-up execution call to Supabase Authentication
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          // Attaches profile metadata automatically to the user account
+          data: {
+            full_name: formData.fullName,
+            member_type: formData.memberType
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // Registration successful state trigger
+      if (data?.user) {
+        setSuccess(true);
+        setFormData({ fullName: '', email: '', password: '', memberType: 'Student' });
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'An unexpected error occurred during registration.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="flex-grow bg-[#f8fafc] text-slate-900 py-12">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex rounded-xl bg-white border border-slate-200 p-1.5 mb-8 shadow-sm">
-          <button onClick={() => setRegisterType('student')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-colors ${registerType === 'student' ? 'bg-[#00a8e8] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <GraduationCap className="w-5 h-5" /> Register as Student
-          </button>
-          <button onClick={() => setRegisterType('professional')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-colors ${registerType === 'professional' ? 'bg-[#00a8e8] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
-            <Briefcase className="w-5 h-5" /> Register as Professional
-          </button>
+    <div className="flex-grow bg-[#f8fafc] flex items-center justify-center py-16 px-4">
+      <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl p-8 shadow-sm space-y-6">
+        
+        {/* Header Block */}
+        <div className="text-center">
+          <h2 className="text-2xl font-black text-slate-900">Create Society Account</h2>
+          <p className="text-slate-400 text-sm mt-1">Join the Operations Research Society of Sri Lanka portal</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2"><label className="text-sm font-semibold text-slate-900">Full Name</label><input type="text" placeholder="Jane Perera" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#00a8e8]" /></div>
-            <div className="space-y-2"><label className="text-sm font-semibold text-slate-900">Email</label><input type="email" placeholder="you@example.com" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#00a8e8]" /></div>
-            <div className="space-y-2"><label className="text-sm font-semibold text-slate-900">{registerType === 'student' ? 'University / Organization' : 'Company / Employer'}</label><input type="text" placeholder="MAS Holdings" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#00a8e8]" /></div>
-            <div className="space-y-2"><label className="text-sm font-semibold text-slate-900">{registerType === 'student' ? 'Degree Program' : 'Job Title'}</label><input type="text" placeholder="Senior Analyst" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#00a8e8]" /></div>
-            <div className="space-y-2 sm:col-span-2"><label className="text-sm font-semibold text-slate-900">Password</label><input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#00a8e8]" /></div>
+
+        {/* Dynamic Status Notifications */}
+        {errorMsg && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-xl text-sm flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
           </div>
-          <div className="mt-8">
-            <label className="text-sm font-semibold text-slate-900 mb-3 block">Expertise Areas</label>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap gap-2">
-              {skillFilters.map((skill, idx) => (
-                <button key={idx} className="bg-white border border-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-full hover:border-[#00a8e8] hover:text-[#00a8e8] transition-colors">+ {skill}</button>
-              ))}
+        )}
+
+        {success && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-xl text-sm flex items-start gap-2.5">
+            <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Registration Initiated!</p>
+              <p className="text-emerald-600/90 text-xs mt-0.5">Please check your inbox for a secure verification link to activate your access profile.</p>
             </div>
           </div>
-          <button className="w-full bg-[#00a8e8] hover:bg-[#0090c7] text-white font-bold py-3.5 rounded-lg mt-8 transition-colors">
-            Create Account & Continue
+        )}
+
+        {/* Input Interface Form */}
+        <form onSubmit={handleRegister} className="space-y-4">
+          
+          {/* Name Field */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                name="fullName"
+                required
+                value={formData.fullName}
+                onChange={handleInputChange}
+                placeholder="e.g., Prof / Dr / Mr / Ms"
+                className="w-full bg-slate-50 text-sm text-slate-900 border border-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#00a8e8] focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Email Field */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+              <input
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="yourname@domain.com"
+                className="w-full bg-slate-50 text-sm text-slate-900 border border-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#00a8e8] focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Password Field */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+              <input
+                type="password"
+                name="password"
+                required
+                minLength={6}
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="••••••••"
+                className="w-full bg-slate-50 text-sm text-slate-900 border border-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#00a8e8] focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Member Classification Selection */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Membership Classification</label>
+            <div className="relative">
+              <GraduationCap className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+              <select
+                name="memberType"
+                value={formData.memberType}
+                onChange={handleInputChange}
+                className="w-full bg-slate-50 text-sm text-slate-900 border border-slate-200 rounded-xl pl-10 pr-4 py-3 appearance-none focus:outline-none focus:border-[#00a8e8] focus:bg-white transition-colors cursor-pointer"
+              >
+                <option value="Student">Undergraduate Student Member</option>
+                <option value="Postgraduate">Postgraduate Researcher</option>
+                <option value="Professional">Academic / Corporate Professional</option>
+                <option value="Life">Life Member</option>
+              </select>
+              <div className="absolute right-4 top-4 pointer-events-none border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-500 w-0 h-0" />
+            </div>
+          </div>
+
+          {/* Submit Action Trigger Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#00a8e8] hover:bg-[#0090c7] disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md shadow-cyan-500/5 flex items-center justify-center gap-2 mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing Registry...
+              </>
+            ) : (
+              'Submit Registration'
+            )}
           </button>
-        </div>
+
+        </form>
       </div>
     </div>
   );
