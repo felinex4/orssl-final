@@ -10,7 +10,6 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
   ];
 
   const handleLogOut = async () => {
-    // Drops session tokens out of the browser cache and updates App.jsx state
     await supabase.auth.signOut();
     setCurrentTab('home');
   };
@@ -20,7 +19,7 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Brand Identity Group */}
+          {/* Brand Identity Group (Left Side) */}
           <div 
             onClick={() => setCurrentTab('home')} 
             className="flex items-center gap-3 cursor-pointer group"
@@ -36,7 +35,7 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
             </div>
           </div>
 
-          {/* Center Navigation Links */}
+          {/* Center Links & Right Actions */}
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-6 mr-2">
               {navigationItems.map((item) => (
@@ -58,27 +57,37 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
             {/* Dynamic Right Action Block */}
             <div className="flex items-center gap-4">
               {user ? (
-                /* AUTHENTICATED STATE: Profile Pill display layout */
-                <div className="flex items-center gap-4 border-l border-white/10 pl-4">
-                  <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl">
-                    <div className="w-6 h-6 bg-[#00a8e8] rounded-md flex items-center justify-center text-white text-xs font-black uppercase">
-                      {user.user_metadata?.full_name ? user.user_metadata.full_name.charAt(0) : <User className="w-3 h-3" />}
+                /* AUTHENTICATED STATE: Profile block mirroring the ORSSL logo layout */
+                <div className="flex items-center gap-4 border-l border-white/10 pl-5 ml-2">
+                  <div className="flex items-center gap-3 cursor-default">
+                    {/* Round Circular Avatar */}
+                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                      <span className="font-black text-[#041124] text-lg uppercase">
+                        {user.user_metadata?.full_name ? user.user_metadata.full_name.charAt(0) : <User className="w-5 h-5 text-[#041124]" />}
+                      </span>
                     </div>
-                    <span className="text-xs font-bold tracking-wide text-slate-200">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
+                    {/* Name and Member Status */}
+                    <div className="text-left hidden md:block">
+                      <span className="font-black tracking-wider text-base block leading-none text-white">
+                        {user.user_metadata?.full_name || user.email.split('@')[0]}
+                      </span>
+                      <span className="text-[10px] text-[#00a8e8] font-bold tracking-widest uppercase block mt-1">
+                        {user.user_metadata?.member_type ? `${user.user_metadata.member_type} Member` : 'Active Session'}
+                      </span>
+                    </div>
                   </div>
                   
+                  {/* Log Out Button */}
                   <button
                     onClick={handleLogOut}
-                    className="text-slate-400 hover:text-rose-400 p-2 rounded-lg transition-colors bg-transparent border-none cursor-pointer"
+                    className="ml-2 text-slate-400 hover:text-rose-400 p-2.5 rounded-full hover:bg-white/5 transition-all bg-transparent border-none cursor-pointer flex items-center justify-center group"
                     title="Sign Out of Account"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
               ) : (
-                /* UNAUTHENTICATED STATE: Action entry triggers */
+                /* UNAUTHENTICATED STATE: Login and Register buttons */
                 <>
                   <button 
                     onClick={() => setCurrentTab('login')}
