@@ -7,6 +7,7 @@ import Directory from './Pages/Directory.jsx';
 import Register from './Pages/Register.jsx';
 import Admin from './Pages/Admin.jsx';
 import Login from './Pages/Login.jsx';
+import Profile from './Pages/Profile.jsx';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('home');
@@ -37,6 +38,7 @@ export default function App() {
         {currentTab === 'directory' && <Directory />}
         {currentTab === 'register' && <Register />}
         {currentTab === 'admin' && <Admin />}
+        {currentTab === 'profile' && <Profile user={user} />}
         {currentTab === 'login' && <Login setCurrentTab={setCurrentTab} />}
       </main>
 

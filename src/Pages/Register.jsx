@@ -283,20 +283,49 @@ export default function Register({ setCurrentTab }) {
       });
       if (authErr) throw authErr;
 
-      const userId = data?.user?.id;
+      let userId = data?.user?.id;
+      let session = data?.session;
 
-      // 2. Insert profile row — table must exist (see SQL in README)
+      // If sign-up did not return an active session, sign in immediately to establish auth
+      if (!session) {
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: account.email,
+          password: account.password,
+        });
+        if (signInErr) throw signInErr;
+        session = signInData?.session;
+        userId = signInData?.user?.id || userId;
+      }
+
+      if (!userId) {
+        throw new Error('Unable to determine user ID after sign up.');
+      }
+
+      // 2. Insert base user profile row
       const { error: dbErr } = await supabase
-        .from('member_profiles')
+        .from('profiles')
         .insert({
-          user_id:     userId,
+          id:          userId,
           full_name:   account.fullName,
           email:       account.email,
           member_type: selectedType,
-          payment_status: 'paid',
-          ...profile,
         });
       if (dbErr) throw dbErr;
+
+      // 3. Insert membership details to a separate table
+      const profileData = Object.fromEntries(
+        Object.entries(profile).filter(([, value]) => value !== undefined && value !== null && value !== '')
+      );
+
+      const { error: memberErr } = await supabase
+        .from('member_profiles')
+        .insert({
+          user_id: userId,
+          member_type: selectedType,
+          payment_status: 'paid',
+          profile_data: profileData,
+        });
+      if (memberErr) throw memberErr;
 
       setStep(5); // success screen
     } catch (err) {
