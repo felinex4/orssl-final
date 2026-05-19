@@ -30,7 +30,7 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
             <div>
               <span className="font-black tracking-wider text-lg block leading-none">ORSSL</span>
               <span className="text-[10px] text-slate-400 tracking-widest uppercase block mt-1">
-                Operations Research Society - Sri Lanka
+                Operations Research Society of Sri Lanka
               </span>
             </div>
           </div>
