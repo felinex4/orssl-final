@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { supabase } from './supabaseClient.js';
 import Navbar from './Components/Navbar.jsx';
 import Footer from './Components/Footer.jsx';
@@ -44,6 +45,9 @@ export default function App() {
 
       {/* Sticky Footer Layout */}
       <Footer />
+      
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
