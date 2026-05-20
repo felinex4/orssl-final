@@ -230,6 +230,31 @@ const CSS = `
 }
 `;
 
+// ─── SRI LANKAN UNIVERSITIES ────────────────────────────────────────────────
+const SRI_LANKAN_UNIVERSITIES = [
+  "University of Peradeniya",
+  "University of Colombo",
+  "University of Moratuwa",
+  "University of Sri Jayewardenepura",
+  "University of Kelaniya",
+  "University of Ruhuna",
+  "University of Jaffna",
+  "Sabaragamuwa University of Sri Lanka",
+  "Wayamba University of Sri Lanka",
+  "Rajarata University of Sri Lanka",
+  "Eastern University, Sri Lanka",
+  "South Eastern University of Sri Lanka",
+  "Uva Wellassa University",
+  "Open University of Sri Lanka",
+  "University of the Visual and Performing Arts",
+  "Gampaha Wickramarachchi University of Indigenous Medicine",
+  "General Sir John Kotelawala Defence University (KDU)",
+  "Sri Lanka Institute of Information Technology (SLIIT)",
+  "National School of Business Management (NSBM)",
+  "Informatics Institute of Technology (IIT)",
+  "CINEC Campus"
+];
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function Register({ setCurrentTab }) {
   const [step, setStep]               = useState(1);
@@ -238,12 +263,36 @@ export default function Register({ setCurrentTab }) {
   const [profile, setProfile]         = useState({});
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState(null);
+  const [institutionSuggestions, setInstitutionSuggestions] = useState([]);
+  const [showInstitutionDropdown, setShowInstitutionDropdown] = useState(false);
 
   const plan   = MEMBER_TYPES.find(t => t.value === selectedType);
   const fields = TYPE_FIELDS[selectedType] || [];
 
   const handleAccountChange = e => setAccount(p => ({ ...p, [e.target.name]: e.target.value }));
-  const handleProfileChange = e => setProfile(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleProfileChange = e => {
+    const { name, value } = e.target;
+    setProfile(p => ({ ...p, [name]: value }));
+    
+    // Handle institution autocomplete
+    if (name === 'institution' || name === 'university') {
+      if (value) {
+        const filtered = SRI_LANKAN_UNIVERSITIES.filter(uni =>
+          uni.toLowerCase().includes(value.toLowerCase())
+        );
+        setInstitutionSuggestions(filtered);
+        setShowInstitutionDropdown(true);
+      } else {
+        setInstitutionSuggestions([]);
+        setShowInstitutionDropdown(false);
+      }
+    }
+  };
+
+  const handleInstitutionSelect = (uni) => {
+    setProfile(p => ({ ...p, institution: uni, university: uni }));
+    setShowInstitutionDropdown(false);
+  };
 
   // Validate account form then move to step 3 — NO Supabase call yet
   const handleAccountNext = (e) => {
@@ -317,14 +366,20 @@ export default function Register({ setCurrentTab }) {
         Object.entries(profile).filter(([, value]) => value !== undefined && value !== null && value !== '')
       );
 
+      // Add new fields: sector, academic_year, description
+      const membershipData = {
+        user_id: userId,
+        member_type: selectedType,
+        payment_status: 'paid',
+        profile_data: profileData,
+        sector: profile.sector || null,
+        academic_year: profile.academic_year || null,
+        description: profile.description || null,
+      };
+
       const { error: memberErr } = await supabase
         .from('member_profiles')
-        .insert({
-          user_id: userId,
-          member_type: selectedType,
-          payment_status: 'paid',
-          profile_data: profileData,
-        });
+        .insert(membershipData);
       if (memberErr) throw memberErr;
 
       setStep(5); // success screen
@@ -590,6 +645,78 @@ export default function Register({ setCurrentTab }) {
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* New Universal Fields */}
+                  <div>
+                    <label className="reg-label">Sector</label>
+                    <div className="select-wrap">
+                      <select name="sector" value={profile.sector || ''} onChange={handleProfileChange} className="reg-select" style={{ paddingLeft: 14 }}>
+                        <option value="">Select…</option>
+                        <option value="Academia">Academia</option>
+                        <option value="Industry">Industry</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Institution Autocomplete */}
+                  <div className="relative">
+                    <label className="reg-label">Institution</label>
+                    <div className="input-wrap relative">
+                      <User className="input-icon w-3.5 h-3.5" />
+                      <input
+                        type="text"
+                        name="institution"
+                        value={profile.institution || ''}
+                        onChange={handleProfileChange}
+                        onFocus={() => profile.institution && setShowInstitutionDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowInstitutionDropdown(false), 150)}
+                        placeholder="Search university..."
+                        className="reg-input"
+                      />
+                    </div>
+                    {showInstitutionDropdown && institutionSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {institutionSuggestions.map((uni, idx) => (
+                          <div
+                            key={idx}
+                            onMouseDown={() => handleInstitutionSelect(uni)}
+                            className="px-4 py-2.5 cursor-pointer hover:bg-slate-50 border-b border-slate-100 text-sm text-slate-700"
+                          >
+                            {uni}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description - Full Width */}
+                  <div className="sm:col-span-2">
+                    <label className="reg-label">Short Bio / Job Title</label>
+                    <textarea
+                      name="description"
+                      value={profile.description || ''}
+                      onChange={handleProfileChange}
+                      placeholder="Brief description of your role or academic focus..."
+                      className="reg-textarea"
+                    />
+                  </div>
+
+                  {/* Academic Year - Conditional for Students */}
+                  {selectedType === 'Student' && (
+                    <div>
+                      <label className="reg-label">Academic Year</label>
+                      <div className="select-wrap">
+                        <select name="academic_year" value={profile.academic_year || ''} onChange={handleProfileChange} className="reg-select" style={{ paddingLeft: 14 }}>
+                          <option value="">Select…</option>
+                          <option value="1st Year">1st Year</option>
+                          <option value="2nd Year">2nd Year</option>
+                          <option value="3rd Year">3rd Year</option>
+                          <option value="4th Year">4th Year</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Type-Specific Fields */}
                   {fields.map(f => (
                     <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>
                       <label className="reg-label">{f.label}</label>

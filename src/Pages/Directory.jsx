@@ -7,12 +7,20 @@ export default function Directory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Filtering State
+  // New Cascading Checkbox Filter States
+  const [selectedMemberships, setSelectedMemberships] = useState([]);
+  const [selectedSectors, setSelectedSectors] = useState([]);
+  const [selectedAcademicLevels, setSelectedAcademicLevels] = useState([]);
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [executiveOnly, setExecutiveOnly] = useState(false);
+  
+  // Search and Institution filters (kept from before)
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTier, setSelectedTier] = useState('All');
+  const [selectedInstitution, setSelectedInstitution] = useState('All');
 
-  // Official Constitutional Tiers for the Sidebar
-  const membershipTiers = ['All', 'Ordinary', 'Life', 'Associate', 'Student', 'Corporate', 'Honorary'];
+  // Official Constitutional Membership Types
+  const membershipTypes = ['Ordinary', 'Life', 'Associate', 'Student', 'Corporate', 'Honorary'];
+  const executiveMembers = ['Ordinary', 'Life', 'Corporate'];
 
   // Fetch live verified profiles from Supabase
   useEffect(() => {
@@ -26,8 +34,33 @@ export default function Directory() {
           .select('id, full_name, email, member_type, created_at')
           .order('full_name', { ascending: true });
 
+        // Fetch additional profile data
+        let enrichedData = data || [];
+        if (data && data.length > 0) {
+          const { data: memberData, error: memberError } = await supabase
+            .from('member_profiles')
+            .select('user_id, sector, academic_year, description, profile_data');
+          
+          if (!memberError && memberData) {
+            const memberMap = {};
+            memberData.forEach(m => {
+              memberMap[m.user_id] = {
+                sector: m.sector,
+                academic_year: m.academic_year,
+                description: m.description,
+                institution: m.profile_data?.institution || m.profile_data?.university || m.profile_data?.affiliation || m.profile_data?.company || null,
+              };
+            });
+            
+            enrichedData = enrichedData.map(user => ({
+              ...user,
+              ...memberMap[user.id],
+            }));
+          }
+        }
+
         if (fetchError) throw fetchError;
-        setMembers(data || []);
+        setMembers(enrichedData);
       } catch (err) {
         setError(err.message || 'Failed to load the member directory.');
       } finally {
@@ -38,15 +71,164 @@ export default function Directory() {
     fetchDirectory();
   }, []);
 
-  // Filtering Logic Engine
+  // Derive active universities from members (with duplicates removed and sorted)
+  const activeUniversities = Array.from(new Set(
+    members
+      .map(m => m.institution)
+      .filter(inst => inst && inst.trim() !== '')
+  )).sort();
+
+  // ─── CASCADING CHECKBOX HANDLERS ───────────────────────────────────────────
+  
+  // Handle "All Membership Types" checkbox
+  const handleAllMemberships = (checked) => {
+    if (checked) {
+      setSelectedMemberships([...membershipTypes]);
+    } else {
+      setSelectedMemberships([]);
+    }
+  };
+
+  // Handle individual membership type checkbox
+  const handleMembershipChange = (type, checked) => {
+    let updated;
+    if (checked) {
+      updated = [...selectedMemberships, type];
+    } else {
+      updated = selectedMemberships.filter(m => m !== type);
+    }
+    setSelectedMemberships(updated);
+  };
+
+  // Check if all memberships are selected
+  const allMembershipsChecked = selectedMemberships.length === membershipTypes.length;
+
+  // ─── SECTOR & ACADEMIC LEVEL CASCADING LOGIC ──────────────────────────────
+  
+  // Academic years array
+  const years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+  
+  // Handle "All Academia" checkbox
+  const handleAllAcademia = (checked) => {
+    if (checked) {
+      // Select all academia-related levels and all years
+      setSelectedSectors(['Academia']);
+      setSelectedAcademicLevels(['Undergraduate', 'Postgraduate', 'Senior Academic']);
+      setSelectedYears([...years]);
+    } else {
+      // Only deselect academia sector
+      setSelectedSectors(selectedSectors.filter(s => s !== 'Academia'));
+      // Keep individual levels/years if manually set
+    }
+  };
+
+  // Handle "All Undergraduates" checkbox
+  const handleAllUndergraduates = (checked) => {
+    let updatedLevels = [...selectedAcademicLevels];
+    if (checked) {
+      if (!updatedLevels.includes('Undergraduate')) {
+        updatedLevels.push('Undergraduate');
+      }
+      setSelectedAcademicLevels(updatedLevels);
+      // Select all years
+      setSelectedYears([...years]);
+    } else {
+      updatedLevels = updatedLevels.filter(l => l !== 'Undergraduate');
+      setSelectedAcademicLevels(updatedLevels);
+      // Keep years as they are (don't auto-deselect)
+    }
+  };
+
+  // Handle individual academic level (Postgraduate, Senior Academic)
+  const handleAcademicLevelChange = (level, checked) => {
+    let updated;
+    if (checked) {
+      updated = [...selectedAcademicLevels, level];
+    } else {
+      updated = selectedAcademicLevels.filter(l => l !== level);
+    }
+    setSelectedAcademicLevels(updated);
+  };
+
+  // Handle individual year checkbox
+  const handleYearChange = (year, checked) => {
+    let updated;
+    if (checked) {
+      updated = [...selectedYears, year];
+    } else {
+      updated = selectedYears.filter(y => y !== year);
+    }
+    setSelectedYears(updated);
+
+    // Auto-check "All Undergraduates" if all years are selected
+    if (updated.length === years.length && !selectedAcademicLevels.includes('Undergraduate')) {
+      setSelectedAcademicLevels([...selectedAcademicLevels, 'Undergraduate']);
+    }
+    // Auto-uncheck "All Undergraduates" if not all years are selected
+    if (updated.length < years.length && selectedAcademicLevels.includes('Undergraduate')) {
+      setSelectedAcademicLevels(selectedAcademicLevels.filter(l => l !== 'Undergraduate'));
+    }
+  };
+
+  // Handle "Industry" checkbox
+  const handleIndustryChange = (checked) => {
+    let updated = [...selectedSectors];
+    if (checked) {
+      if (!updated.includes('Industry')) {
+        updated.push('Industry');
+      }
+    } else {
+      updated = updated.filter(s => s !== 'Industry');
+    }
+    setSelectedSectors(updated);
+  };
+
+  // Check if "All Academia" should be checked
+  const allAcademiaChecked = selectedSectors.includes('Academia') &&
+    selectedAcademicLevels.includes('Undergraduate') &&
+    selectedAcademicLevels.includes('Postgraduate') &&
+    selectedAcademicLevels.includes('Senior Academic') &&
+    selectedYears.length === years.length;
+
+  // Check if "All Undergraduates" should be checked (must include Undergraduate level AND all years)
+  const allUndergraduatesChecked = selectedAcademicLevels.includes('Undergraduate') && selectedYears.length === years.length && selectedYears.length > 0;
+
+  // Filtering Logic Engine with cascading array logic
   const filteredMembers = members.filter((member) => {
-    const matchesSearch = 
+    // If searchTerm is empty, show all; otherwise filter by name/email
+    const matchesSearch = !searchTerm || 
       member.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       member.email?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    const matchesTier = selectedTier === 'All' || member.member_type === selectedTier;
     
-    return matchesSearch && matchesTier;
+    // Membership type: if array is empty, show all; otherwise check if member type is in array
+    const matchesMembership = selectedMemberships.length === 0 || selectedMemberships.includes(member.member_type);
+    
+    // Sector logic: handle Academia with academic levels/years
+    let matchesSectorAndLevel = true;
+    if (selectedSectors.length > 0 || selectedAcademicLevels.length > 0 || selectedYears.length > 0) {
+      matchesSectorAndLevel = false;
+      
+      // Check Academia path
+      if (selectedSectors.includes('Academia')) {
+        const inUndergrad = selectedAcademicLevels.includes('Undergraduate') && selectedYears.includes(member.academic_year);
+        const inPostgrad = selectedAcademicLevels.includes('Postgraduate') && member.academic_year === 'Postgraduate';
+        const inSenior = selectedAcademicLevels.includes('Senior Academic') && member.academic_year === 'Senior Academic';
+        if (inUndergrad || inPostgrad || inSenior) {
+          matchesSectorAndLevel = true;
+        }
+      }
+      
+      // Check Industry path
+      if (selectedSectors.includes('Industry') && member.sector === 'Industry') {
+        matchesSectorAndLevel = true;
+      }
+    }
+    
+    const matchesInstitution = selectedInstitution === 'All' || member.institution === selectedInstitution;
+    
+    const matchesExecutive = !executiveOnly || executiveMembers.includes(member.member_type);
+    
+    return matchesSearch && matchesMembership && matchesSectorAndLevel && matchesInstitution && matchesExecutive;
   });
 
   // Avatar Initials Generator
@@ -99,25 +281,147 @@ export default function Directory() {
                 </div>
               </div>
 
-              {/* Membership Tier Radio Buttons */}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Classification</label>
+              {/* Membership Type Cascading Checkboxes */}
+              <div className="mb-8">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Membership Types</label>
                 <div className="space-y-2">
-                  {membershipTiers.map((tier) => (
-                    <button
-                      key={tier}
-                      onClick={() => setSelectedTier(tier)}
-                      className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all flex items-center justify-between ${
-                        selectedTier === tier 
-                          ? 'bg-[#00a8e8]/10 text-[#00a8e8] font-bold border border-[#00a8e8]/20' 
-                          : 'text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 font-medium'
-                      }`}
-                    >
-                      <span>{tier} {tier !== 'All' && 'Members'}</span>
-                      {selectedTier === tier && <div className="w-1.5 h-1.5 rounded-full bg-[#00a8e8]"></div>}
-                    </button>
-                  ))}
+                  {/* "All Membership Types" Parent */}
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={allMembershipsChecked}
+                      onChange={(e) => handleAllMemberships(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                    />
+                    <span className="text-sm font-bold text-[#041124]">All Membership Types</span>
+                  </label>
+                  
+                  {/* Individual Membership Type Children */}
+                  <div className="pl-4 space-y-1.5 border-l-2 border-slate-200">
+                    {membershipTypes.map((type) => (
+                      <label key={type} className="flex items-center gap-3 cursor-pointer p-1.5 rounded hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedMemberships.includes(type)}
+                          onChange={(e) => handleMembershipChange(type, e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                        />
+                        <span className="text-sm text-slate-600">{type}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
+              </div>
+
+              {/* Sector & Academic Level Cascading Checkboxes */}
+              <div className="mb-8">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Sector & Academic Level</label>
+                <div className="space-y-2.5">
+                  
+                  {/* "All Academia" Parent */}
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={allAcademiaChecked}
+                      onChange={(e) => handleAllAcademia(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                    />
+                    <span className="text-sm font-bold text-[#041124]">All Academia</span>
+                  </label>
+
+                  {/* Academia Children - Indented */}
+                  <div className="pl-4">
+                    
+                    {/* "All Undergraduates" Sub-Parent */}
+                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={allUndergraduatesChecked}
+                        onChange={(e) => handleAllUndergraduates(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                      />
+                      <span className="text-sm font-semibold text-slate-700">All Undergraduates</span>
+                    </label>
+
+                    {/* Academic Years - Double Indented */}
+                    <div className="pl-4 space-y-1.5 border-l border-slate-200">
+                      {years.map((year) => (
+                        <label key={year} className="flex items-center gap-3 cursor-pointer p-1.5 rounded hover:bg-slate-50">
+                          <input
+                            type="checkbox"
+                            checked={selectedYears.includes(year)}
+                            onChange={(e) => handleYearChange(year, e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                          />
+                          <span className="text-sm text-slate-600">{year}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Postgraduate */}
+                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50 mt-1.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedAcademicLevels.includes('Postgraduate')}
+                        onChange={(e) => handleAcademicLevelChange('Postgraduate', e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                      />
+                      <span className="text-sm text-slate-600">Postgraduate</span>
+                    </label>
+
+                    {/* Senior Academic */}
+                    <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedAcademicLevels.includes('Senior Academic')}
+                        onChange={(e) => handleAcademicLevelChange('Senior Academic', e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                      />
+                      <span className="text-sm text-slate-600">Senior Academic</span>
+                    </label>
+                  </div>
+
+                  {/* Industry Parent */}
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border-t border-slate-200 mt-2 pt-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedSectors.includes('Industry')}
+                      onChange={(e) => handleIndustryChange(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-[#00a8e8] cursor-pointer"
+                    />
+                    <span className="text-sm font-bold text-[#041124]">Industry</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Institution Filter - Shows when at least one student has institution data */}
+              {activeUniversities.length > 0 && (
+                <div className="mb-8 border-t border-slate-300 pt-6">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">📍 Filter by Institution</label>
+                  <select
+                    value={selectedInstitution}
+                    onChange={(e) => setSelectedInstitution(e.target.value)}
+                    className="w-full bg-blue-50 text-sm border-2 border-[#00a8e8] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#00a8e8] transition-colors font-medium"
+                  >
+                    <option value="All">All Institutions</option>
+                    {activeUniversities.map((uni) => (
+                      <option key={uni} value={uni}>{uni}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Executive Committee Only Checkbox */}
+              <div className="mb-8">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={executiveOnly}
+                    onChange={(e) => setExecutiveOnly(e.target.checked)}
+                    className="w-4 h-4 text-[#00a8e8] border-slate-200 rounded cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-slate-600">Executive Committee Only</span>
+                </label>
               </div>
 
             </div>
@@ -165,31 +469,41 @@ export default function Directory() {
                       >
                         <div>
                           {/* Top Row: Avatar & Details */}
-                          <div className="flex items-start justify-between mb-5">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-50 text-slate-600 border border-slate-200 font-bold text-sm">
-                                {getInitials(member.full_name)}
-                              </div>
-                              <div className="min-w-0 pr-2">
-                                <h3 className="text-base font-bold text-[#041124] leading-tight truncate">
-                                  {member.full_name || 'Anonymous Member'}
-                                </h3>
-                                <span className="text-xs text-slate-500 mt-0.5 block">{member.member_type} Affiliate</span>
-                              </div>
+                          <div className="flex items-start gap-4 mb-5">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-50 text-slate-600 border border-slate-200 font-bold text-sm flex-shrink-0">
+                              {getInitials(member.full_name)}
                             </div>
-                            
-                            {/* Dynamic Membership Tier Badge */}
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#041124]/5 text-[#041124] border border-[#041124]/10 flex-shrink-0">
-                              {member.member_type}
-                            </span>
+                            <div className="min-w-0 flex-grow">
+                              <h3 className="text-base font-bold text-[#041124] leading-tight truncate">
+                                {member.full_name || 'Anonymous Member'}
+                              </h3>
+                              <span className="text-xs text-slate-500 mt-1 block">{member.member_type} Affiliate</span>
+                            </div>
                           </div>
 
                           {/* Info Rows */}
-                          <div className="space-y-2.5 mt-2">
+                          <div className="space-y-2.5 mt-4">
                             <div className="flex items-center gap-2.5 text-sm text-slate-600">
                               <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
                               <span className="truncate">{member.email}</span>
                             </div>
+                            
+                            {/* Institution */}
+                            {member.institution && (
+                              <div className="text-sm text-slate-600 pl-6">
+                                <span className="font-medium">{member.institution}</span>
+                                {member.member_type === 'Student' && member.academic_year && (
+                                  <span className="text-slate-500"> • {member.academic_year}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Description */}
+                            {member.description && (
+                              <div className="text-sm text-slate-600 pl-6">
+                                <p className="italic text-slate-700">{member.description}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
 
