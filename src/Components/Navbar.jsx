@@ -77,10 +77,16 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setProfileOpen((value) => !value)}
-                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform"
+                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform overflow-hidden"
                     aria-label="Open profile menu"
                   >
-                    {user.user_metadata?.full_name ? (
+                    {user.user_metadata?.avatar_url ? (
+                      <img 
+                        src={user.user_metadata.avatar_url} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : user.user_metadata?.full_name ? (
                       <span className="font-black text-[#041124] text-lg uppercase">
                         {user.user_metadata.full_name.charAt(0)}
                       </span>
@@ -93,8 +99,18 @@ export default function Navbar({ currentTab, setCurrentTab, user }) {
                     <div className="absolute right-0 mt-3 w-72 rounded-2xl bg-[#08172e] border border-white/10 shadow-2xl text-white z-50">
                       <div className="p-4 border-b border-white/10">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#041124] text-lg font-black">
-                            {user.user_metadata?.full_name ? user.user_metadata.full_name.charAt(0) : <User className="w-5 h-5" />}
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-[#041124] text-lg font-black overflow-hidden">
+                            {user.user_metadata?.avatar_url ? (
+                              <img 
+                                src={user.user_metadata.avatar_url} 
+                                alt="Profile" 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : user.user_metadata?.full_name ? (
+                              user.user_metadata.full_name.charAt(0)
+                            ) : (
+                              <User className="w-5 h-5" />
+                            )}
                           </div>
                           <div>
                             <p className="font-bold text-sm">
