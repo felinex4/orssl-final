@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Navbar from './Components/Navbar.jsx';
 import Footer from './Components/Footer.jsx';
 import Home from './Pages/Home.jsx';
@@ -44,6 +45,7 @@ export default function App() {
 
       {/* Sticky Footer Layout */}
       <Footer />
+      <SpeedInsights />
     </div>
   );
 }
